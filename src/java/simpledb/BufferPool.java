@@ -80,16 +80,23 @@ public class BufferPool {
     	// if no space throw db exception
     	if(page_hash.containsKey(pid))
     		return page_hash.get(pid);
-    	else if(page_hash.size()<num_pages)
-    	{
-    		// read from memory
-    		int tableid = pid.getTableId();
-    		DbFile f = Database.getCatalog().getDatabaseFile(tableid);
-    		// now read from page from file
-    		Page p = f.readPage(pid);
-    		page_hash.put(pid, p);
-    		return p;
-    	}
+    	else
+        {
+            if(page_hash.size()<num_pages)
+            {
+                // read from memory
+                int tableid = pid.getTableId();
+                DbFile f = Database.getCatalog().getDatabaseFile(tableid);
+                // now read from page from file
+                Page p = f.readPage(pid);
+                page_hash.put(pid, p);
+                return p;
+            }
+            else
+            {
+                evictPage();
+            }
+        }
     	
     	throw new DbException("Buffer pool is full");
     }
@@ -155,8 +162,17 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
+
+        // get all pages that have been updated.
+        ArrayList<Page> updatedPages = file.insertTuple(tid, t);
+        // TODO implement Lock acquisition. (not needed for lab2)
+        for (Page page : updatedPages)
+        {
+            PageId pageId = page.getId();
+            page.markDirty(true, tid);
+            page_hash.put(pageId, page);
+        }
     }
 
     /**
@@ -174,8 +190,23 @@ public class BufferPool {
      */
     public  void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+        int tableId = t.getRecordId().getPageId().getTableId();
+        try
+        {
+            HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
+            ArrayList<Page> updatedPages = heapFile.deleteTuple(tid, t);
+            for (Page page : updatedPages)
+            {
+                PageId pageId = page.getId();
+                page.markDirty(true, tid);
+                // replace old page with updated page
+                page_hash.put(pageId, page);
+            }
+        }
+        catch (Exception e)
+        {
+            throw new IOException("Error deleting tuple from table " + tableId);
+        }
     }
 
     /**
@@ -184,8 +215,10 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        for (PageId pageId : page_hash.keySet())
+        {
+            flushPage(pageId);
+        }
 
     }
 
@@ -198,8 +231,7 @@ public class BufferPool {
         are removed from the cache so they can be reused safely
     */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // not necessary for lab1
+        page_hash.remove(pid);
     }
 
     /**
@@ -207,8 +239,20 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        if (page_hash.containsKey(pid))
+        {
+            Page page = this.page_hash.get(pid);
+            if (page.isDirty() != null)
+            {
+                HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(pid.getTableId());
+                heapFile.writePage(page);
+                page.markDirty(false, null);
+            }
+        }
+        else
+        {
+            throw new IOException();
+        }
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -223,8 +267,20 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        for (PageId pageId : page_hash.keySet())
+        {
+            try
+            {
+                // flush page to disk
+                flushPage(pageId);
+                // Discard page from buffer pool.
+                page_hash.remove(pageId);
+            }
+            catch (Exception e)
+            {
+                throw new DbException("Error evicting page" + pageId + ": " + e.getMessage());
+            }
+        }
     }
 
 }
