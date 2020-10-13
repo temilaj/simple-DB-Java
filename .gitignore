@@ -1,1 +1,5 @@
 answers.pdf
+bin/
+.idea/
+dist/
+simpledb.iml
