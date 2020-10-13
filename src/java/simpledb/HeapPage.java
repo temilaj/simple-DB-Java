@@ -20,6 +20,9 @@ public class HeapPage implements Page {
     final int numSlots;
 
     byte[] oldData;
+    TransactionId dirtyTransaction;
+    boolean isPageDirty;
+
     private final Byte oldDataLock=new Byte((byte)0);
 
     /**
@@ -244,8 +247,21 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        RecordId recordId = t.getRecordId();
+        int tupleNumber = recordId.tupleno();
+
+        // check if this tuple is not on this page, or slot is not used
+        if (!this.pid.equals(recordId.getPageId()) || !isSlotUsed(tupleNumber))
+        {
+            throw  new DbException("Tuple not in this page or tuple slot empty");
+        }
+        else
+        {
+            // mark slot as not used
+            markSlotUsed(tupleNumber, false);
+        }
+
+
     }
 
     /**
@@ -266,6 +282,8 @@ public class HeapPage implements Page {
      */
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
+        this.isPageDirty = dirty;
+        this.dirtyTransaction = dirty ? tid : null;
 	// not necessary for lab1
     }
 
@@ -273,9 +291,7 @@ public class HeapPage implements Page {
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // some code goes here
-	// Not necessary for lab1
-        return null;      
+        return this.dirtyTransaction;
     }
 
     /**
@@ -320,8 +336,18 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
+        int index = i / 8;
+        int pos_in_index = i % 8;
+
+        // marks or unmark slot
+        if (value)
+        {
+            header[index] |= 1 << pos_in_index;
+        }
+        else
+        {
+            header[index] &= ~(1 << pos_in_index);
+        }
     }
 
     /**

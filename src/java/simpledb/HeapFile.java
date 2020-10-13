@@ -1,5 +1,6 @@
 package simpledb;
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.util.*;
 
@@ -107,7 +108,21 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public void writePage(Page page) throws IOException {
         // some code goes here
-        // not necessary for lab1
+		byte[] pageData = page.getPageData();
+		long offsetPosition = BufferPool.getPageSize() * page.getId().pageNumber();
+		try
+		{
+			RandomAccessFile file = new RandomAccessFile(this.f, "rw");
+            // Set the file-pointer offset,
+			file.seek(offsetPosition);
+			file.write(pageData);
+            // Close file stream
+			file.close();
+		}
+		catch(Exception e)
+		{
+			throw new IOException("error writing page to file");
+		}
     }
 
     /**
@@ -121,17 +136,28 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+    	ArrayList<Page> pageList = new ArrayList<>();
+    	BufferPool bufferPool = Database.getBufferPool();
+    	return pageList;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        try
+        {
+            PageId pageId = t.getRecordId().getPageId();
+            HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+			heapPage.deleteTuple(t);
+            ArrayList<Page> pageList = new ArrayList<>();
+            Collections.addAll(pageList, heapPage);
+
+            return pageList;
+        }
+        catch(DbException e)
+        {
+            throw new DbException("Error deleting tuple" + e.getMessage());
+        }
     }
 
     // see DbFile.java for javadocs 
