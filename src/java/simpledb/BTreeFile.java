@@ -196,7 +196,30 @@ public class BTreeFile implements DbFile {
 			Field f) 
 					throws DbException, TransactionAbortedException {
 		// some code goes here
-        return null;
+		if(pid.pgcateg()==BTreePageId.LEAF) // if we find a leaf page just directly return it
+		{
+			BTreeLeafPage pg = (BTreeLeafPage)getPage(tid, dirtypages, pid, perm);
+			return pg;
+		}
+		// now recurse to find the left most entry for a key
+		BTreeInternalPage cur_page = (BTreeInternalPage)(getPage(tid, dirtypages, pid, Permissions.READ_ONLY));
+		
+		Iterator<BTreeEntry> iter = cur_page.iterator();
+		
+		BTreeEntry entry_item = null; 
+		
+		while(iter != null && iter.hasNext()) 
+		{
+			entry_item = iter.next();
+			// get the first entry which has key value greater than equal to key
+			
+			if (f == null || entry_item.getKey().compare(Op.GREATER_THAN_OR_EQ, f))
+			{
+				return this.findLeafPage(tid, dirtypages, entry_item.getLeftChild(), perm, f);
+			}
+		}
+		// the last entry's right most child
+		return this.findLeafPage(tid, dirtypages, entry_item.getRightChild(), perm, f);
 	}
 	
 	/**
@@ -248,8 +271,50 @@ public class BTreeFile implements DbFile {
 		// the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
 		// the sibling pointers of all the affected leaf pages.  Return the page into which a 
 		// tuple with the given key field should be inserted.
-        return null;
 		
+		BTreeLeafPage new_leaf_page = (BTreeLeafPage)(getEmptyPage(tid, dirtypages, BTreePageId.LEAF));
+		int num_tuples = page.getNumTuples();
+		int num_recs_to_del;
+		if((num_tuples%2)==1)
+			num_recs_to_del = num_tuples/2 + 1;
+		else
+			num_recs_to_del = num_tuples/2;
+
+		Iterator<Tuple> iter = page.reverseIterator();
+        int i = 0;
+		Tuple cur_tuple = null;		
+		for(i=0;iter.hasNext() && i<num_recs_to_del;++i)
+		{
+			cur_tuple = iter.next();
+			page.deleteTuple(cur_tuple);
+			new_leaf_page.insertTuple(cur_tuple);
+		}
+		
+		Field key_ = cur_tuple.getField(this.keyField);
+		
+		BTreeInternalPage parent_pg = (BTreeInternalPage) (this.getParentWithEmptySlots(tid, 
+				dirtypages, page.getParentId(), key_));
+		parent_pg.insertEntry(new BTreeEntry(key_, page.getId(), new_leaf_page.getId()));
+		new_leaf_page.setParentId(parent_pg.getId());
+		
+		// if there is a page to the right
+		if (page.getRightSiblingId() != null) 
+		{
+			BTreeLeafPage right_pg = (BTreeLeafPage)(this.getPage(tid, 
+					dirtypages, page.getRightSiblingId(), Permissions.READ_WRITE));
+			new_leaf_page.setRightSiblingId(right_pg.getId());
+			right_pg.setLeftSiblingId(new_leaf_page.getId());
+			
+		}
+		
+		page.setRightSiblingId(new_leaf_page.getId());
+		new_leaf_page.setLeftSiblingId(page.getId());
+		
+		// if key is greater than the field value then return old page
+		if (key_.compare(Op.GREATER_THAN_OR_EQ, field)) 
+			return page;
+		//else return new page
+		return new_leaf_page;
 	}
 	
 	/**
@@ -278,7 +343,46 @@ public class BTreeFile implements DbFile {
 			BTreeInternalPage page, Field field) 
 					throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
-		return null;
+		
+		BTreeInternalPage new_internal_page = (BTreeInternalPage)(getEmptyPage(tid, 
+				dirtypages, BTreePageId.INTERNAL));
+		int num_entries = page.getNumEntries();
+		int num_recs_to_del;
+		if((num_entries%2)==0)
+			num_recs_to_del = num_entries/2 - 1;
+		else
+			num_recs_to_del = num_entries/2;
+
+		Iterator<BTreeEntry> iter = page.reverseIterator();
+        int i = 0;
+        BTreeEntry cur_entry = null;		
+		for(i=0;iter.hasNext() && i<num_recs_to_del;++i)
+		{
+			cur_entry = iter.next();
+			page.deleteKeyAndRightChild(cur_entry);
+			new_internal_page.insertEntry(cur_entry);
+		}
+				
+		BTreeEntry move_up_ = iter.next();
+		Field key_ = move_up_.getKey();
+		page.deleteKeyAndRightChild(move_up_);
+		
+		BTreeInternalPage parent_pg = (BTreeInternalPage)(this.getParentWithEmptySlots(tid, 
+				dirtypages, page.getParentId(), key_));
+		
+		move_up_.setRightChild(new_internal_page.getId());
+		move_up_.setLeftChild(page.getId());
+		
+		parent_pg.insertEntry(move_up_);
+		new_internal_page.setParentId(parent_pg.getId());
+		
+		updateParentPointers(tid,dirtypages, new_internal_page);
+		
+		// if key is greater than the field value then return old page
+		if (key_.compare(Op.GREATER_THAN_OR_EQ, field)) 
+			return page;
+		//else return new page
+		return new_internal_page;
 	}
 	
 	/**

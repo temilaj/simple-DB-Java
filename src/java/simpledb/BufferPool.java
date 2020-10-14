@@ -164,10 +164,12 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
-        HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
+//        HeapFile file = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
+//
+//        // get all pages that have been updated.
+//        ArrayList<Page> updatedPages = file.insertTuple(tid, t);
 
-        // get all pages that have been updated.
-        ArrayList<Page> updatedPages = file.insertTuple(tid, t);
+        ArrayList<Page> updatedPages = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
         // TODO implement Lock acquisition. (not needed for lab2)
         for (Page page : updatedPages)
         {
