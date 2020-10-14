@@ -78,27 +78,29 @@ public class BufferPool {
     	// if page in buffer return directly
     	// if space still left read from memory and add
     	// if no space throw db exception
-    	if(page_hash.containsKey(pid))
-    		return page_hash.get(pid);
-    	else
+    	if (page_hash.containsKey(pid))
         {
-            if(page_hash.size()<num_pages)
-            {
-                // read from memory
-                int tableid = pid.getTableId();
-                DbFile f = Database.getCatalog().getDatabaseFile(tableid);
-                // now read from page from file
-                Page p = f.readPage(pid);
-                page_hash.put(pid, p);
-                return p;
-            }
-            else
-            {
-                evictPage();
-            }
+            return page_hash.get(pid);
+
         }
-    	
-    	throw new DbException("Buffer pool is full");
+    	if (page_hash.size() == num_pages)
+        {
+            evictPage();
+        }
+    	if (page_hash.size() < num_pages)
+        {
+            // read from memory
+            int tableid = pid.getTableId();
+            DbFile f = Database.getCatalog().getDatabaseFile(tableid);
+            // now read from page from file
+            Page p = f.readPage(pid);
+            page_hash.put(pid, p);
+            return p;
+        }
+        else
+        {
+            throw new DbException("Buffer pool is full");
+        }
     }
 
     /**
@@ -245,7 +247,9 @@ public class BufferPool {
             if (page.isDirty() != null)
             {
                 HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(pid.getTableId());
+                // write page to disk.
                 heapFile.writePage(page);
+                // mark page as not dirty
                 page.markDirty(false, null);
             }
         }
@@ -278,7 +282,7 @@ public class BufferPool {
             }
             catch (Exception e)
             {
-                throw new DbException("Error evicting page" + pageId + ": " + e.getMessage());
+                throw new DbException("Error flushing page " + pageId + " during eviction: " + e.getMessage());
             }
         }
     }

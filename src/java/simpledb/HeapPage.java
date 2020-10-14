@@ -272,8 +272,32 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        // check that the page is not full
+        if (getNumEmptySlots() == 0) {
+            throw new DbException("Error inserting tuple. Heap page full");
+        }
+        // check for tupledesc match
+        if (this.td.equals(t.getTupleDesc()))
+        {
+            for (int i = 0; i < this.numSlots; i++)
+            {
+                if (!this.isSlotUsed(i))
+                {
+                    RecordId recordId = new RecordId(this.pid, i);
+                    int tupleNumber = recordId.tupleno();
+                    this.markSlotUsed(tupleNumber, true);
+
+                    this.tuples[i] = t;
+                    t.setRecordId(recordId);
+                    // break out of loop once tuple has been inserted into page
+                    break;
+                }
+            }
+        }
+        else
+        {
+            throw new DbException("Error inserting tuple. Table schema mismatch");
+        }
     }
 
     /**
@@ -281,10 +305,8 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // some code goes here
         this.isPageDirty = dirty;
         this.dirtyTransaction = dirty ? tid : null;
-	// not necessary for lab1
     }
 
     /**

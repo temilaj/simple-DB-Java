@@ -113,10 +113,10 @@ public class HeapFile implements DbFile {
 		try
 		{
 			RandomAccessFile file = new RandomAccessFile(this.f, "rw");
-            // Set the file-pointer offset,
+			// Set the file-pointer offset,
 			file.seek(offsetPosition);
 			file.write(pageData);
-            // Close file stream
+			// Close file stream
 			file.close();
 		}
 		catch(Exception e)
@@ -129,15 +129,39 @@ public class HeapFile implements DbFile {
      * Returns the number of pages in this HeapFile.
      */
     public int numPages() {
-        // some code goes here
-    	return num_pages;
+    	return (int)Math.ceil(this.f.length() / BufferPool.getPageSize());
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
+    	// keep track of modified pages
     	ArrayList<Page> pageList = new ArrayList<>();
     	BufferPool bufferPool = Database.getBufferPool();
+
+    	for (int i = 0; i < num_pages; i++)
+		{
+			PageId pageId = new HeapPageId(this.getId(), i);
+			HeapPage heapPage = (HeapPage) bufferPool.getPage(tid, pageId, Permissions.READ_WRITE);
+			if (heapPage.getNumEmptySlots() > 0)
+			{
+				heapPage.insertTuple(t);
+				pageList.add(heapPage);
+				break;
+			}
+		}
+
+    	// check if there are no modified pages
+		if (pageList.isEmpty())
+		{
+			HeapPageId heapPageId = new HeapPageId(this.getId(), this.numPages());
+			HeapPage heapPage = new HeapPage(heapPageId, HeapPage.createEmptyPageData());
+
+			heapPage.insertTuple(t);
+			this.writePage(heapPage);
+			pageList.add(heapPage);
+		}
+
     	return pageList;
     }
 
@@ -146,11 +170,11 @@ public class HeapFile implements DbFile {
             TransactionAbortedException {
         try
         {
-            PageId pageId = t.getRecordId().getPageId();
-            HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
-			heapPage.deleteTuple(t);
-            ArrayList<Page> pageList = new ArrayList<>();
-            Collections.addAll(pageList, heapPage);
+        	PageId pageId = t.getRecordId().getPageId();
+        	HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+        	heapPage.deleteTuple(t);
+        	ArrayList<Page> pageList = new ArrayList<>();
+        	Collections.addAll(pageList, heapPage);
 
             return pageList;
         }
