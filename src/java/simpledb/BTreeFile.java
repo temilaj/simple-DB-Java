@@ -864,7 +864,6 @@ public class BTreeFile implements DbFile {
 			parentEntry.setKey(currentKey);
 
 			parent.updateEntry(parentEntry);
-
 			currentBTreeEntry.setRightChild(currentBTreeEntry.getLeftChild());
 			currentBTreeEntry.setLeftChild(page.reverseIterator().next().getRightChild());
 
@@ -934,14 +933,33 @@ public class BTreeFile implements DbFile {
 	protected void mergeInternalPages(TransactionId tid, HashMap<PageId, Page> dirtypages, 
 			BTreeInternalPage leftPage, BTreeInternalPage rightPage, BTreeInternalPage parent, BTreeEntry parentEntry) 
 					throws DbException, IOException, TransactionAbortedException {
-		
-		// some code goes here
-        //
-        // Move all the entries from the right page to the left page, update
-		// the parent pointers of the children in the entries that were moved, 
-		// and make the right page available for reuse
-		// Delete the entry in the parent corresponding to the two pages that are merging -
-		// deleteParentEntry() will be useful here
+
+		Field key = parentEntry.getKey();
+		BTreePageId leftChild = leftPage.reverseIterator().next().getRightChild();
+		BTreePageId rightChild  = rightPage.iterator().next().getLeftChild();
+
+		leftPage.insertEntry(new BTreeEntry(key, leftChild, rightChild));
+		BTreeInternalPageIterator iterator = (BTreeInternalPageIterator) rightPage.iterator();
+
+		while (iterator.hasNext())
+		{
+			//Move entry from the right page to the left page,
+			BTreeEntry bTreeEntry = iterator.next();
+			rightPage.deleteKeyAndLeftChild(bTreeEntry);
+			leftPage.insertEntry(bTreeEntry);
+
+		}
+		// update parent pointers
+		this.updateParentPointers(tid, dirtypages, leftPage);
+
+		// set right page to empty
+		this.setEmptyPage(tid, dirtypages, rightPage.getId().pageNumber());
+		// Delete entry in  parent
+		this.deleteParentEntry(tid, dirtypages, leftPage, parent, parentEntry);
+
+		// add parent and left page to the dirty pages hashmap
+		dirtypages.put(parent.getId(), parent);
+		dirtypages.put(leftPage.getId(), leftPage);
 	}
 	
 	/**
