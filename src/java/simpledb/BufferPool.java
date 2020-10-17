@@ -248,18 +248,16 @@ public class BufferPool {
             Page page = this.page_hash.get(pid);
             if (page.isDirty() != null)
             {
-//                HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(pid.getTableId());
-//              // write page to disk.
-//              heapFile.writePage(page);
+              // write page to disk.
             	Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
                 // mark page as not dirty
                 page.markDirty(false, null);
             }
         }
-//        else
-//        {
-//            throw new IOException();
-//        }
+        else
+        {
+            throw new IOException();
+        }
     }
 
     /** Write all pages of the specified transaction to disk.
