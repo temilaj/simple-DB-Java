@@ -197,8 +197,7 @@ public class BufferPool {
         int tableId = t.getRecordId().getPageId().getTableId();
         try
         {
-            HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(tableId);
-            ArrayList<Page> updatedPages = heapFile.deleteTuple(tid, t);
+        	ArrayList<Page> updatedPages = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
             for (Page page : updatedPages)
             {
                 PageId pageId = page.getId();
@@ -209,6 +208,7 @@ public class BufferPool {
         }
         catch (Exception e)
         {
+        	e.printStackTrace();
             throw new IOException("Error deleting tuple from table " + tableId);
         }
     }
@@ -248,9 +248,8 @@ public class BufferPool {
             Page page = this.page_hash.get(pid);
             if (page.isDirty() != null)
             {
-                HeapFile heapFile = (HeapFile)Database.getCatalog().getDatabaseFile(pid.getTableId());
-                // write page to disk.
-                heapFile.writePage(page);
+              // write page to disk.
+            	Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
                 // mark page as not dirty
                 page.markDirty(false, null);
             }
