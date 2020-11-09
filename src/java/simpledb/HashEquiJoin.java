@@ -10,9 +10,8 @@ public class HashEquiJoin extends Operator {
 
     private static final long serialVersionUID = 1L;
 
-    private JoinPredicate p;
-    private DbIterator child1;
-    private DbIterator child2;
+    private JoinPredicate joinPredicate;
+    private DbIterator[] children;
 
     /**
      * Constructor. Accepts to children to join and the predicate to join them
@@ -26,46 +25,51 @@ public class HashEquiJoin extends Operator {
      *            Iterator for the right(inner) relation to join
      */
     public HashEquiJoin(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        this.p = p;
-        this.child1 = child1;
-        this.child2 = child2;
+        this.joinPredicate = p;
+        this.children = new DbIterator[2];
+        this.children[0] = child1;
+        this.children[1] = child2;
     }
 
     public JoinPredicate getJoinPredicate() {
-       return  this.p;
+       return  this.joinPredicate;
     }
 
     public TupleDesc getTupleDesc() {
-        TupleDesc tupleDesc1 = this.child1.getTupleDesc();
-        TupleDesc tupleDesc2 = this.child2.getTupleDesc();
+        TupleDesc tupleDesc1 = this.children[0].getTupleDesc();
+        TupleDesc tupleDesc2 = this.children[1].getTupleDesc();
         return TupleDesc.merge(tupleDesc1, tupleDesc2);
     }
     
     public String getJoinField1Name()
     {
-        TupleDesc tupleDesc = this.child1.getTupleDesc();
-        int fieldIndex = this.p.getField2();
+        TupleDesc tupleDesc = this.children[0].getTupleDesc();
+        int fieldIndex = this.joinPredicate.getField2();
         return tupleDesc.getFieldName(fieldIndex);
     }
 
     public String getJoinField2Name()
     {
-        TupleDesc tupleDesc = this.child2.getTupleDesc();
-        int fieldIndex = this.p.getField2();
+        TupleDesc tupleDesc = this.children[1].getTupleDesc();
+        int fieldIndex = this.joinPredicate.getField2();
         return tupleDesc.getFieldName(fieldIndex);
     }
     
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        super.open();
-        this.child1.open();
-        this.child1.open();
+       super.open();
+        for (DbIterator child : children)
+        {
+            child.open();
+        }
     }
 
     public void close() {
-        this.child1.close();
-        this.child2.close();
-        super.close();
+        for (DbIterator child : children)
+        {
+            child.close();
+        }
+       super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
@@ -99,13 +103,13 @@ public class HashEquiJoin extends Operator {
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return this.children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.children = children;
+
     }
     
 }
