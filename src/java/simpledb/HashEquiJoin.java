@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.util.*;
+import java.util.function.DoubleBinaryOperator;
 
 /**
  * The Join operator implements the relational join operation.
@@ -8,6 +9,10 @@ import java.util.*;
 public class HashEquiJoin extends Operator {
 
     private static final long serialVersionUID = 1L;
+
+    private JoinPredicate p;
+    private DbIterator child1;
+    private DbIterator child2;
 
     /**
      * Constructor. Accepts to children to join and the predicate to join them
@@ -21,38 +26,46 @@ public class HashEquiJoin extends Operator {
      *            Iterator for the right(inner) relation to join
      */
     public HashEquiJoin(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        // some code goes here
+        this.p = p;
+        this.child1 = child1;
+        this.child2 = child2;
     }
 
     public JoinPredicate getJoinPredicate() {
-        // some code goes here
-        return null;
+       return  this.p;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        TupleDesc tupleDesc1 = this.child1.getTupleDesc();
+        TupleDesc tupleDesc2 = this.child2.getTupleDesc();
+        return TupleDesc.merge(tupleDesc1, tupleDesc2);
     }
     
     public String getJoinField1Name()
     {
-        // some code goes here
-	return null;
+        TupleDesc tupleDesc = this.child1.getTupleDesc();
+        int fieldIndex = this.p.getField2();
+        return tupleDesc.getFieldName(fieldIndex);
     }
 
     public String getJoinField2Name()
     {
-        // some code goes here
-        return null;
+        TupleDesc tupleDesc = this.child2.getTupleDesc();
+        int fieldIndex = this.p.getField2();
+        return tupleDesc.getFieldName(fieldIndex);
     }
     
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        super.open();
+        this.child1.open();
+        this.child1.open();
     }
 
     public void close() {
-        // some code goes here
+        this.child1.close();
+        this.child2.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
