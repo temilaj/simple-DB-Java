@@ -9,7 +9,7 @@ public class Filter extends Operator {
 
     private static final long serialVersionUID = 1L;
 
-    private Predicate p;
+    private Predicate predicate;
     private DbIterator child;
 
     /**
@@ -23,12 +23,12 @@ public class Filter extends Operator {
      */
     public Filter(Predicate p, DbIterator child) {
         super();
-        this.p = p;
+        this.predicate = p;
         this.child = child;
     }
 
     public Predicate getPredicate() {
-        return this.p;
+        return this.predicate;
     }
 
     public TupleDesc getTupleDesc() {
@@ -66,7 +66,7 @@ public class Filter extends Operator {
         {
             Tuple currentTuple = this.child.next();
             // attempt to filter with the predicate
-            if (this.p.filter(currentTuple))
+            if (this.predicate.filter(currentTuple))
             {
                 // return the tuple if successful
                 return currentTuple;
@@ -79,12 +79,13 @@ public class Filter extends Operator {
     public DbIterator[] getChildren() {
         // return the children DbIterators of this operator.
         // If there is only one child, return an array of only one element.
-        DbIterator[] children = new DbIterator[]{ this.child };;
+        DbIterator[] children = new DbIterator[] { this.child };
         return children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
+        // set the current child to the first element of the children array
         this.child = children[0];
     }
 

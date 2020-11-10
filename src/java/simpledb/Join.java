@@ -10,8 +10,6 @@ public class Join extends Operator {
     private static final long serialVersionUID = 1L;
 
     private JoinPredicate joinPredicate;
-//    private DbIterator child1;
-//    private DbIterator child2;
 
     private DbIterator[] children;
     private ArrayList<Tuple> tuples;
@@ -29,8 +27,6 @@ public class Join extends Operator {
      */
     public Join(JoinPredicate p, DbIterator child1, DbIterator child2) {
         this.joinPredicate = p;
-//        this.child1 = child1;
-//        this.child2 = child2;
         this.children = new DbIterator[2];
         this.children[0] = child1;
         this.children[1] = child2;
@@ -48,7 +44,6 @@ public class Join extends Operator {
      * */
     public String getJoinField1Name() {
         // some code goes here
-//        TupleDesc tupleDesc = this.child1.getTupleDesc();
         TupleDesc tupleDesc = this.children[0].getTupleDesc();
         int fieldIndex = this.joinPredicate.getField1();
         return tupleDesc.getFieldName(fieldIndex);
@@ -60,7 +55,6 @@ public class Join extends Operator {
      *       alias or table name.
      * */
     public String getJoinField2Name() {
-//        TupleDesc tupleDesc = this.child2.getTupleDesc();
         TupleDesc tupleDesc = this.children[1].getTupleDesc();
         int fieldIndex = this.joinPredicate.getField2();
         return tupleDesc.getFieldName(fieldIndex);
@@ -71,10 +65,6 @@ public class Join extends Operator {
      *      implementation logic.
      */
     public TupleDesc getTupleDesc() {
-//        TupleDesc tupleDesc1 = this.child1.getTupleDesc();
-//        TupleDesc tupleDesc2 = this.child2.getTupleDesc();
-//        return TupleDesc.merge(tupleDesc1, tupleDesc2);
-
         TupleDesc tupleDesc1 = this.children[0].getTupleDesc();
         TupleDesc tupleDesc2 = this.children[1].getTupleDesc();
         return TupleDesc.merge(tupleDesc1, tupleDesc2);
@@ -82,12 +72,9 @@ public class Join extends Operator {
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-//        super.open();
-//        this.child1.open();
-//        this.child2.open();
+        super.open();
         for (DbIterator child : children)
         {
-            System.out.println(child);
             child.open();
         }
 
@@ -104,7 +91,7 @@ public class Join extends Operator {
                 {
                     int index = 0;
                     Tuple newTuple = new Tuple(this.getTupleDesc());
-                    // create a new Tuple merging both children
+                    // create a new Tuple by concatenating the first and second tuples
                     for (int i = 0; i < firstTuple.getTupleDesc().numFields(); i++)
                     {
                         newTuple.setField(index, firstTuple.getField(i));
@@ -122,7 +109,6 @@ public class Join extends Operator {
             children[1].rewind();
         }
         this.tupleIterator = this.tuples.iterator();
-        super.open();
 
     }
 
@@ -169,15 +155,11 @@ public class Join extends Operator {
 
     @Override
     public DbIterator[] getChildren() {
-//        DbIterator[] children = new DbIterator[]{ this.child1, this.child2 };;
-//        return children;
         return this.children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-//        this.child1 = children[0];
-//        this.child2 = children[1];
         this.children = children;
     }
 
