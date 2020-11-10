@@ -9,6 +9,11 @@ public class Join extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private JoinPredicate joinPredicate;
+
+    private DbIterator[] children;
+    private ArrayList<Tuple> tuples;
+    private Iterator<Tuple> tupleIterator;
     /**
      * Constructor. Accepts to children to join and the predicate to join them
      * on
@@ -21,12 +26,15 @@ public class Join extends Operator {
      *            Iterator for the right(inner) relation to join
      */
     public Join(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        // some code goes here
+        this.joinPredicate = p;
+        this.children = new DbIterator[2];
+        this.children[0] = child1;
+        this.children[1] = child2;
+        tuples = new ArrayList<>();
     }
 
     public JoinPredicate getJoinPredicate() {
-        // some code goes here
-        return null;
+        return this.joinPredicate;
     }
 
     /**
@@ -36,7 +44,9 @@ public class Join extends Operator {
      * */
     public String getJoinField1Name() {
         // some code goes here
-        return null;
+        TupleDesc tupleDesc = this.children[0].getTupleDesc();
+        int fieldIndex = this.joinPredicate.getField1();
+        return tupleDesc.getFieldName(fieldIndex);
     }
 
     /**
@@ -45,8 +55,9 @@ public class Join extends Operator {
      *       alias or table name.
      * */
     public String getJoinField2Name() {
-        // some code goes here
-        return null;
+        TupleDesc tupleDesc = this.children[1].getTupleDesc();
+        int fieldIndex = this.joinPredicate.getField2();
+        return tupleDesc.getFieldName(fieldIndex);
     }
 
     /**
@@ -54,21 +65,63 @@ public class Join extends Operator {
      *      implementation logic.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        TupleDesc tupleDesc1 = this.children[0].getTupleDesc();
+        TupleDesc tupleDesc2 = this.children[1].getTupleDesc();
+        return TupleDesc.merge(tupleDesc1, tupleDesc2);
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        super.open();
+        for (DbIterator child : children)
+        {
+            child.open();
+        }
+
+        DbIterator child1 = children[0];
+        DbIterator child2 = children[1];
+
+        while (child1.hasNext())
+        {
+            Tuple firstTuple = child1.next();
+            while (child2.hasNext())
+            {
+                Tuple secondTuple = child2.next();
+                if(this.joinPredicate.filter(firstTuple, secondTuple))
+                {
+                    int index = 0;
+                    Tuple newTuple = new Tuple(this.getTupleDesc());
+                    // create a new Tuple by concatenating the first and second tuples
+                    for (int i = 0; i < firstTuple.getTupleDesc().numFields(); i++)
+                    {
+                        newTuple.setField(index, firstTuple.getField(i));
+                        index += 1;
+                    }
+                    for (int i = 0; i < secondTuple.getTupleDesc().numFields(); i++)
+                    {
+                        newTuple.setField(index, secondTuple.getField(i));
+                        index += 1;
+
+                    }
+                    this.tuples.add(newTuple);
+                }
+            }
+            children[1].rewind();
+        }
+        this.tupleIterator = this.tuples.iterator();
+
     }
 
     public void close() {
-        // some code goes here
+        for (DbIterator child : children)
+        {
+            child.close();
+        }
+       super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        this.tupleIterator = this.tuples.iterator();
     }
 
     /**
@@ -90,19 +143,24 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        if (this.tupleIterator == null || !this.tupleIterator.hasNext())
+        {
+            return null;
+        }
+        else
+        {
+            return this.tupleIterator.next();
+        }
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return this.children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.children = children;
     }
 
 }
