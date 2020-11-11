@@ -1,4 +1,5 @@
 package simpledb;
+import java.io.IOException;
 
 /**
  * Inserts tuples read from the child operator into the tableId specified in the
@@ -7,6 +8,11 @@ package simpledb;
 public class Insert extends Operator {
 
     private static final long serialVersionUID = 1L;
+    private TransactionId t;
+    private DbIterator child;
+    private int tableId;
+    private TupleDesc tup_desc;
+    private boolean already_fetched;
 
     /**
      * Constructor.
@@ -24,23 +30,40 @@ public class Insert extends Operator {
     public Insert(TransactionId t,DbIterator child, int tableId)
             throws DbException {
         // some code goes here
+    	this.t=t;
+    	TupleDesc tab_desc= Database.getCatalog().getTupleDesc(tableId);
+    	if (!(tab_desc.equals(child.getTupleDesc()))) 
+    	{
+    		throw new DbException("The table and child TupleDesc do not match");
+    	}
+    	this.child = child;
+    	this.tableId=tableId;
+    	this.already_fetched = false;
+    	
+    	this.tup_desc = new TupleDesc(new Type[] {Type.INT_TYPE});
+//    	this.tup_desc = tab_desc;
+    	
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return tup_desc;
     }
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
+    	super.open();
     }
 
     public void close() {
         // some code goes here
+    	super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
+    	already_fetched = false; // to enable reset
+    	
     }
 
     /**
@@ -58,17 +81,42 @@ public class Insert extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        if (already_fetched) 
+        	return null;
+    	
+        int count_insert = 0;
+    	try 
+    	{
+    		child.open();
+    		while(child.hasNext()) {
+    			Database.getBufferPool().insertTuple(this.t, this.tableId, child.next());
+    			count_insert++;
+    		}
+    		child.close();
+    	}
+    	catch(IOException e) 
+    	{
+//    		throw new DbException("Insertion error");
+    		e.printStackTrace();
+    	}
+    	already_fetched = true;
+    	
+    	Tuple tup = new Tuple(new TupleDesc(new Type[] {Type.INT_TYPE}));
+    	tup.setField(0, new IntField(count_insert));
+        return tup;        
     }
 
     @Override
     public DbIterator[] getChildren() {
         // some code goes here
-        return null;
+    	return new DbIterator[] {child};
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
         // some code goes here
+    	if(children.length < 1) 
+    		throw new IllegalArgumentException("Incorrect number of elements");
+    	child = children[0];
     }
 }
