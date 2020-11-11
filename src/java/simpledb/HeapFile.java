@@ -139,7 +139,7 @@ public class HeapFile implements DbFile {
     	ArrayList<Page> pageList = new ArrayList<>();
     	BufferPool bufferPool = Database.getBufferPool();
 
-    	for (int i = 0; i < num_pages; i++)
+    	for (int i = 0; i < numPages() ; i++)
 		{
 			PageId pageId = new HeapPageId(this.getId(), i);
 			HeapPage heapPage = (HeapPage) bufferPool.getPage(tid, pageId, Permissions.READ_WRITE);
