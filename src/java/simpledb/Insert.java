@@ -1,5 +1,4 @@
 package simpledb;
-import java.io.IOException;
 
 /**
  * Inserts tuples read from the child operator into the tableId specified in the
@@ -94,10 +93,9 @@ public class Insert extends Operator {
     		}
     		child.close();
     	}
-    	catch(IOException e) 
+    	catch(Exception e) 
     	{
-//    		throw new DbException("Insertion error");
-    		e.printStackTrace();
+    		throw new DbException("Insertion error" + e.toString());
     	}
     	already_fetched = true;
     	
@@ -115,7 +113,7 @@ public class Insert extends Operator {
     @Override
     public void setChildren(DbIterator[] children) {
         // some code goes here
-    	if(children.length < 1) 
+    	if(children.length==0) 
     		throw new IllegalArgumentException("Incorrect number of elements");
     	child = children[0];
     }
