@@ -129,7 +129,8 @@ public class HeapFile implements DbFile {
      * Returns the number of pages in this HeapFile.
      */
     public int numPages() {
-    	return (int)Math.ceil(this.f.length() / BufferPool.getPageSize());
+    	this.num_pages = (int)Math.ceil(this.f.length() / BufferPool.getPageSize()); 
+    	return this.num_pages;
     }
 
     // see DbFile.java for javadocs
@@ -187,97 +188,66 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs 
     public DbFileIterator iterator(TransactionId tid) {
     	
-    	DbFileIterator iter = new DbFileIterator() {
+    	DbFileIterator iter = new DbFileIterator() {  		
     		
-    		private HeapPage cur_page = null;
-            private boolean is_open = false;
-            private Iterator<Tuple> cursor = null;
-            
-            @Override
-            public void open() throws DbException, TransactionAbortedException {
-            	
-            	try {
-                is_open = true;
-                HeapPageId hpid = new HeapPageId(getId(), 0);
-                cur_page = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_ONLY);
-                cursor = cur_page.iterator();
-            	}
-            	catch(Exception e)
-            	{
-            		throw new DbException("Opening file failed" + e.toString());
-            	}
-            }
+    		Iterator<Tuple> cursor;
+      	  	int cur_page_num;
+      	  	boolean is_open=false;
     		
-            @Override
-            public boolean hasNext() throws DbException, TransactionAbortedException {
-            	
-            	try {
+      	  
+      	  	public void open() throws DbException, TransactionAbortedException {
+      	  		cur_page_num = -1;
+      	  		cursor = null;
+      	  		is_open = true;
+      	  	}
+      	  
+      	  @Override
+    	  	public boolean hasNext() throws TransactionAbortedException, DbException{
+	  	  		if(is_open==false)
+		  			return false;
+      		  
+    	  		if (cursor != null && !cursor.hasNext()) 
+    	  			cursor = null;
+    	  		
+    	  		// we loop because we want to reach the end of file. Intermediate pages may have been filled
+    	  		// but then could have had their tuples deleted, leaving the pages empty.
+    	  		while(cursor == null && cur_page_num < numPages() - 1) 
+    	  		{
+    	  			HeapPageId  cur_page_id = new HeapPageId(getId(), ++cur_page_num);
+    	  			HeapPage cur_page = (HeapPage) Database.getBufferPool().getPage(tid,cur_page_id,Permissions.READ_ONLY);
+    	  			cursor = cur_page.iterator();
+    	  			if (!cursor.hasNext()) 
+    	  				cursor = null;
+    	  		}
+    	  		if (cursor == null) 
+    	  			return false;
+    	  		return true;
+    	  	}
+      	  	
+      	  	@Override
+      	  	public Tuple next() throws TransactionAbortedException, DbException{
+      	  		
+      	  	if(is_open==false)
+	  			throw new NoSuchElementException();
+      	  		
+      	  	if (!(this.hasNext()))
+      	  			return null;
+      	  		return cursor.next();
+      	  	}
 
-	                if ((!is_open) || (cur_page == null)) 
-	                	return false;
-	
-	                if (cursor.hasNext()) // If more tuples in page
-	                	return true;
-	                else {
-	                    // Check if next page exits
-	                	
-	                	int cur_page_num = cur_page.getId().pageNumber();
-	                    int next_page_num = (cur_page_num + 1);
-	                    if ((next_page_num<0) || (next_page_num == num_pages))
-	                        return false;
-	
-	                    // If yes load pages
-	                    HeapPageId hpid = new HeapPageId(getId(), next_page_num);
-	                    cur_page = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_ONLY);
-	                    cursor = cur_page.iterator();
-	                    
-	                    // Then next tuple
-	                    return cursor.hasNext();
-	                }
-            	}
-            	catch(Exception e)
-            	{
-            		throw new DbException("Error checking for next page");
-            	}
-            }
-
-            @Override
-            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
-                
-            	if(!hasNext())
-            	{
-            		throw new NoSuchElementException();
-            	}
-            	
-            	return cursor.next();
-//				return null;
-            }
-            
-            @Override
-            public void rewind() throws DbException, TransactionAbortedException {
-            	try {
-	            	HeapPageId hpid = new HeapPageId(getId(), 0);
-	                cur_page = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_ONLY);
-	                cursor = cur_page.iterator();
-            	}
-            	catch(Exception e)
-            	{
-            		throw new DbException("Error while resetting");
-            	}
-            }
-            
-            @Override
-            public void close() {
-            	is_open = false;
-            	cur_page = null;
-                cursor = null;
-            }
+      	  	@Override
+      	  	public void rewind() throws DbException, TransactionAbortedException {
+	      	  	cursor = null;
+	      	  	cur_page_num = -1;
+      	  	}
+      	  
+      	  	public void close() {
+      	  		cursor = null;
+      	  		cur_page_num = Integer.MAX_VALUE;
+      	  		is_open = false;
+      	  	}
 
     	};
-        return iter;
-
-        
+        return iter;    
     }
-
 }
-
