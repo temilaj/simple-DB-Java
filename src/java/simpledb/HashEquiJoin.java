@@ -15,7 +15,7 @@ public class HashEquiJoin extends Operator {
     private DbIterator child2;
     private TupleDesc comboTD;
     private HashMap<Object, ArrayList<Tuple>> map;
-    static int MAP_SIZE = 20000;
+    static int MAP_SIZE = 20000; // Constant Field Value from the documentation
     private Tuple t1;
     private Tuple t2;
 
@@ -194,6 +194,10 @@ public class HashEquiJoin extends Operator {
 
     @Override
     public void setChildren(DbIterator[] children) {
+        if (children.length == 0)
+        {
+    		throw new IllegalArgumentException("Incorrect number of elements supplied");
+        }
         this.child1 = children[0];
         this.child2 = children[1];
 

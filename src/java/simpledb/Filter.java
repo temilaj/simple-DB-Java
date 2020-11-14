@@ -85,6 +85,10 @@ public class Filter extends Operator {
 
     @Override
     public void setChildren(DbIterator[] children) {
+        if (children.length == 0)
+        {
+            throw new IllegalArgumentException("Incorrect number of elements supplied");
+        }
         // set the current child to the first element of the children array
         this.child = children[0];
     }
