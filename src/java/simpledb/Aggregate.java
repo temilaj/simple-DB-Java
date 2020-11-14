@@ -187,7 +187,7 @@ public class Aggregate extends Operator {
     @Override
     public void setChildren(DbIterator[] children) {
 	// some code goes here
-    	if(children.length < 1) 
+    	if(children.length==0) 
     		throw new IllegalArgumentException("Incorrect number of elements");
     	child = children[0];
     }

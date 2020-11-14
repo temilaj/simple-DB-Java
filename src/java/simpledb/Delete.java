@@ -1,6 +1,5 @@
 package simpledb;
 
-import java.io.IOException;
 
 /**
  * The delete operator. Delete reads tuples from its child operator and removes
@@ -75,10 +74,9 @@ public class Delete extends Operator {
     		}
     		child.close();
     	}
-    	catch(IOException e) 
+    	catch(Exception e) 
     	{
-//    		throw new DbException("Insertion error");
-    		e.printStackTrace();
+    		throw new DbException("Deletion error" + e.toString());
     	}
     	already_fetched = true;
     	
@@ -96,7 +94,7 @@ public class Delete extends Operator {
     @Override
     public void setChildren(DbIterator[] children) {
         // some code goes here
-    	if(children.length < 1) 
+    	if(children.length==0) 
     		throw new IllegalArgumentException("Incorrect number of elements");
     	child = children[0];
     }
