@@ -3,3 +3,4 @@ bin/
 .idea/
 dist/
 simpledb.iml
+.DS_Store
