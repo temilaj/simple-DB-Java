@@ -241,26 +241,21 @@ public class JoinOptimizer {
             HashMap<String, TableStats> stats,
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
-        //Not necessary for labs 1--3
+        
     	// stores optimal plans
     	PlanCache p_cache = new PlanCache();
     	// logic - given that all of the subsets of size joinSet.size() - 1 have already been computed
         // and stored in PlanCache pc.
     	
-    	//LogicalPlan - the logical plan being optimized
-        // joins - the list of joins being performed
-    	// this creates all subsets of length 1
-    	Set<Set<LogicalJoinNode>> join_set = enumerateSubsets(joins,1);
-    	
-    	// stores only the unique values of joins
-    	// instead of hash set use only normal set ?
+    	// stores the individual values of joins
     	Set<LogicalJoinNode> h_set = new HashSet<LogicalJoinNode>(joins);  	
     	
-    	// just use joins.size instead ?
-    	// have to see
-    	for (int i = 0; i <= join_set.size();++i) {
+    	for (int i = 0; i <= joins.size();++i) 
+    	{
     		
-    		for (Set<LogicalJoinNode> i_set : enumerateSubsets(joins,i)) {
+    		Set<Set<LogicalJoinNode>> join_set = enumerateSubsets(joins,i);
+    		for (Set<LogicalJoinNode> i_set : join_set) 
+			{
     			// object to store best plan
     			CostCard best_plan = new CostCard();
     			// cardinality of result
@@ -270,9 +265,6 @@ public class JoinOptimizer {
     			// the actual plan
     			best_plan.plan = null;
     			
-    			// for(int j=0;j<= i_set.size();++j)
-    			// {
-    			// LogicalJoinNode j_item = i_set[j];
     			for (LogicalJoinNode j : i_set) 
     			{
     				// compute cost of the plan
@@ -285,11 +277,12 @@ public class JoinOptimizer {
     		}
     	}
     	
-    	Vector<LogicalJoinNode> best = p_cache.getOrder(h_set);
+    	Vector<LogicalJoinNode> best_order = p_cache.getOrder(h_set);
     	
     	if (explain) 
-    		printJoins(best,p_cache,stats,filterSelectivities);
-        return best;
+    		printJoins(best_order,p_cache,stats,filterSelectivities);
+    	
+        return best_order;
     }
 
     // ===================== Private Methods =================================
