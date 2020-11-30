@@ -111,7 +111,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1*cost2 + card1*card2;
         }
     }
 
@@ -155,9 +155,33 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
-        return card <= 0 ? 1 : card;
+        
+    	if(joinOp == Predicate.Op.EQUALS)
+    	{
+    		if(t1pkey)
+    		{
+    			// if the first key is a primary key, then result can't be larger than the size of 
+    			// the non-primary key attribute
+    			return card2;
+    		}
+    		else if(t2pkey)
+    		{
+    			return card1;
+    		}
+    		else
+    			return Math.max(card1, card2);
+    			// if no primary key, return the max of the two tuples
+    	}
+    	else
+    	{
+    		//assume 30% of cross product
+    		// Use int because I want cost of scanning a full tuple
+    		int res = (int)(0.3*card1*card2);
+    		return res;
+    		
+    	}
+    	
+        
     }
 
     /**
@@ -218,10 +242,54 @@ public class JoinOptimizer {
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
         //Not necessary for labs 1--3
-
-        // some code goes here
-        //Replace the following
-        return joins;
+    	// stores optimal plans
+    	PlanCache p_cache = new PlanCache();
+    	// logic - given that all of the subsets of size joinSet.size() - 1 have already been computed
+        // and stored in PlanCache pc.
+    	
+    	//LogicalPlan - the logical plan being optimized
+        // joins - the list of joins being performed
+    	// this creates all subsets of length 1
+    	Set<Set<LogicalJoinNode>> join_set = enumerateSubsets(joins,1);
+    	
+    	// stores only the unique values of joins
+    	// instead of hash set use only normal set ?
+    	Set<LogicalJoinNode> h_set = new HashSet<LogicalJoinNode>(joins);  	
+    	
+    	// just use joins.size instead ?
+    	// have to see
+    	for (int i = 0; i <= join_set.size();++i) {
+    		
+    		for (Set<LogicalJoinNode> i_set : enumerateSubsets(joins,i)) {
+    			// object to store best plan
+    			CostCard best_plan = new CostCard();
+    			// cardinality of result
+    			best_plan.card = Integer.MAX_VALUE; 
+    			// cost of result
+    			best_plan.cost = Double.MAX_VALUE;
+    			// the actual plan
+    			best_plan.plan = null;
+    			
+    			// for(int j=0;j<= i_set.size();++j)
+    			// {
+    			// LogicalJoinNode j_item = i_set[j];
+    			for (LogicalJoinNode j : i_set) 
+    			{
+    				// compute cost of the plan
+    				 CostCard plan = computeCostAndCardOfSubplan(stats, filterSelectivities,j,i_set,best_plan.cost,p_cache);
+    				 // if better than best plan, update
+    				 if (plan != null && plan.cost < best_plan.cost) 
+    					 best_plan = plan;
+    			}
+    			p_cache.addPlan(i_set, best_plan.cost, best_plan.card, best_plan.plan);
+    		}
+    	}
+    	
+    	Vector<LogicalJoinNode> best = p_cache.getOrder(h_set);
+    	
+    	if (explain) 
+    		printJoins(best,p_cache,stats,filterSelectivities);
+        return best;
     }
 
     // ===================== Private Methods =================================
